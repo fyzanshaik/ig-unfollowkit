@@ -1,6 +1,13 @@
-# ig-unfollowkit
+<p align="center">
+  <img src="icons/icon128.png" width="80" alt="ig-unfollowkit icon" />
+</p>
 
-A Chrome extension that analyzes your Instagram follower/following relationships. Find out who doesn't follow you back, discover your real mutuals, track changes between scans, and filter by verified/unverified/public/private status.
+<h1 align="center">ig-unfollowkit</h1>
+
+<p align="center">
+  A Chrome extension that analyzes your Instagram follower/following relationships.<br/>
+  Find out who doesn't follow you back, discover your real mutuals, track changes between scans, and filter by verified/unverified/public/private status.
+</p>
 
 > **Coming soon to the Chrome Web Store.** Until then, you can install it manually in developer mode.
 
