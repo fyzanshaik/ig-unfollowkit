@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap" />
+  <link rel="stylesheet" href="graph.css" />
+  <title>Social Graph · Unfollow Checker</title>
+</head>
+<body>
+  <header class="g-header">
+    <div class="g-brand">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="2" y="2" width="20" height="20" rx="5" ry="5"/><circle cx="12" cy="12" r="5"/><circle cx="17.5" cy="6.5" r="1.5" fill="currentColor" stroke="none"/></svg>
+      <span>Social Graph</span>
+    </div>
+    <div id="headerMeta" class="g-header-meta"></div>
+  </header>
+
+  <main class="g-main">
+    <!-- Loading / scanning overlay -->
+    <section id="statusPanel" class="g-status-panel">
+      <div class="g-status-card">
+        <h1 id="statusTitle">Loading...</h1>
+        <p id="statusDetail" class="g-status-detail"></p>
+        <div class="g-bar-wrap hidden" id="statusBarWrap"><div id="statusBar" class="g-bar"></div></div>
+        <div id="statusCurrent" class="g-status-current"></div>
+        <div id="statusButtons" class="g-status-buttons"></div>
+      </div>
+    </section>
+
+    <!-- Graph -->
+    <section id="graphPanel" class="g-graph-panel hidden">
+      <aside class="g-sidebar">
+        <div class="g-sidebar-section">
+          <input id="searchInput" type="text" placeholder="Search username or name..." class="g-input" />
+        </div>
+
+        <div class="g-sidebar-section">
+          <div class="g-sidebar-label">Filters</div>
+          <label class="g-check"><input type="checkbox" id="filterVerified" /> <span>Verified only</span></label>
+          <label class="g-check"><input type="checkbox" id="filterPrivate" /> <span>Private only</span></label>
+          <label class="g-check"><input type="checkbox" id="filterIsolated" /> <span>Hide isolated nodes</span></label>
+        </div>
+
+        <div class="g-sidebar-section">
+          <div class="g-sidebar-label">Display</div>
+          <label class="g-check"><input type="checkbox" id="labelsToggle" /> <span>Show all labels</span></label>
+          <button id="btnRestartLayout" class="g-btn g-btn-ghost g-btn-full">Recompute layout</button>
+          <button id="btnFit" class="g-btn g-btn-ghost g-btn-full">Fit to screen</button>
+        </div>
+
+        <div class="g-sidebar-section">
+          <div class="g-sidebar-label">Stats</div>
+          <div class="g-stats">
+            <div class="g-stat"><span class="g-stat-num" id="statNodes">0</span><span class="g-stat-label">nodes</span></div>
+            <div class="g-stat"><span class="g-stat-num" id="statEdges">0</span><span class="g-stat-label">edges</span></div>
+            <div class="g-stat"><span class="g-stat-num" id="statReciprocal">0</span><span class="g-stat-label">reciprocal</span></div>
+          </div>
+        </div>
+
+        <div id="selectedPanel" class="g-sidebar-section g-selected hidden">
+          <div class="g-sidebar-label">Selected</div>
+          <div id="selectedBody"></div>
+        </div>
+      </aside>
+
+      <div id="visContainer" class="g-vis"></div>
+    </section>
+  </main>
+
+  <script src="vis-network.min.js"></script>
+  <script src="graph.js"></script>
+</body>
+</html>

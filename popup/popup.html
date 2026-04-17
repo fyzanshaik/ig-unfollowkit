@@ -156,6 +156,66 @@
     <div id="resultsInfo" class="results-info"></div>
   </section>
 
+  <!-- Social Graph (gated, shown only after a completed scan with mutuals > 0) -->
+  <section id="graphSection" class="graph-section hidden">
+    <div class="graph-header">
+      <span class="graph-title">Social Graph <span class="graph-beta">beta</span></span>
+    </div>
+
+    <!-- Idle state: build button + warning -->
+    <div id="graphIdle" class="graph-state">
+      <p class="graph-desc">Map how your <b id="graphMutualCount">0</b> mutuals connect to each other.</p>
+      <div class="graph-warning">
+        <span class="graph-warning-icon">⚠</span>
+        <div class="graph-warning-body">
+          <div>Est. <b id="graphEta">~15 min</b>. Makes one API call per mutual — Instagram may briefly rate-limit.</div>
+          <div class="graph-warning-sub">Keep this browser open during scan.</div>
+        </div>
+      </div>
+      <button id="btnGraphBuild" class="btn-ghost btn-sm">Build Social Graph</button>
+    </div>
+
+    <!-- Confirm state: two-step consent -->
+    <div id="graphConfirm" class="graph-state hidden">
+      <p class="graph-desc graph-confirm-text">Are you sure? This will send ~<span id="graphConfirmCount">0</span> requests over ~<span id="graphConfirmEta">15 min</span>.</p>
+      <div class="graph-confirm-row">
+        <button id="btnGraphStart" class="btn-primary btn-sm btn-graph-danger">I understand — Start</button>
+        <button id="btnGraphCancelConfirm" class="btn-ghost btn-sm">Cancel</button>
+      </div>
+    </div>
+
+    <!-- Scanning state: progress -->
+    <div id="graphScanning" class="graph-state hidden">
+      <div class="graph-progress-row">
+        <div class="graph-spinner"></div>
+        <div class="graph-progress-text">
+          <div class="graph-progress-title"><span id="graphProgressTitle">Scanning mutuals...</span></div>
+          <div class="graph-progress-detail"><span id="graphProgressDetail">0 / 0</span> · <span id="graphEdgesLabel">0 edges</span></div>
+        </div>
+      </div>
+      <div class="graph-bar-wrap"><div id="graphBar" class="graph-bar"></div></div>
+      <div class="graph-btn-row">
+        <button id="btnGraphOpenTab" class="btn-ghost btn-xs">Open graph tab</button>
+        <button id="btnGraphCancelScan" class="btn-ghost btn-xs btn-danger-text">Cancel scan</button>
+      </div>
+    </div>
+
+    <!-- Complete state: open + rebuild -->
+    <div id="graphComplete" class="graph-state hidden">
+      <p class="graph-desc"><b id="graphCompleteNodes">0</b> nodes · <b id="graphCompleteEdges">0</b> edges</p>
+      <div class="graph-btn-row">
+        <button id="btnGraphOpen" class="btn-primary btn-sm">Open Graph</button>
+        <button id="btnGraphRebuild" class="btn-ghost btn-sm">Rebuild</button>
+      </div>
+    </div>
+
+    <!-- Error state -->
+    <div id="graphError" class="graph-state hidden">
+      <p class="graph-desc graph-error-msg" id="graphErrorMsg">Something went wrong</p>
+      <button id="btnGraphRetry" class="btn-ghost btn-sm">Try again</button>
+    </div>
+  </section>
+
   <!-- Footer -->
   <footer>
     <span id="lastScan" class="muted-text"></span>

@@ -533,6 +533,134 @@ header {
   font-size: 13px;
 }
 
+/* ===== Graph Section ===== */
+.graph-section {
+  padding: 12px 20px;
+  border-top: 1px solid var(--border);
+  animation: fadeUp .2s ease;
+}
+.graph-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+.graph-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--fg2);
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+.graph-beta {
+  font-size: 9px;
+  font-weight: 600;
+  color: var(--amber);
+  background: var(--amber-bg);
+  border: 1px solid var(--amber-border);
+  padding: 1px 6px;
+  border-radius: 99px;
+  margin-left: 4px;
+  vertical-align: 1px;
+}
+.graph-state { display: flex; flex-direction: column; gap: 8px; }
+.graph-desc {
+  font-size: 12.5px;
+  color: var(--fg2);
+  line-height: 1.4;
+}
+.graph-desc b { color: var(--fg); font-weight: 600; }
+
+.graph-warning {
+  display: flex;
+  gap: 8px;
+  padding: 8px 10px;
+  background: var(--amber-bg);
+  border: 1px solid var(--amber-border);
+  border-radius: 6px;
+}
+.graph-warning-icon {
+  color: var(--amber);
+  font-weight: 700;
+  font-size: 14px;
+  line-height: 1.2;
+  flex-shrink: 0;
+}
+.graph-warning-body {
+  font-size: 11.5px;
+  color: var(--fg2);
+  line-height: 1.4;
+}
+.graph-warning-body b { color: var(--fg); font-weight: 600; }
+.graph-warning-sub {
+  color: var(--fg3);
+  font-size: 11px;
+  margin-top: 2px;
+}
+
+.graph-confirm-row {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+.graph-confirm-text { color: var(--fg); font-weight: 500; }
+
+.btn-graph-danger {
+  background: var(--red);
+}
+.btn-graph-danger:hover { background: #dc2626; }
+
+.graph-progress-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.graph-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid var(--border);
+  border-top-color: var(--fg);
+  border-radius: 50%;
+  animation: graphSpin .9s linear infinite;
+  flex-shrink: 0;
+}
+@keyframes graphSpin {
+  to { transform: rotate(360deg); }
+}
+.graph-progress-text { flex: 1; min-width: 0; }
+.graph-progress-title {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--fg);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  display: block;
+}
+.graph-progress-detail {
+  font-size: 11.5px;
+  color: var(--fg3);
+  margin-top: 1px;
+}
+
+.graph-bar-wrap {
+  width: 100%;
+  height: 4px;
+  background: var(--border);
+  border-radius: 99px;
+  overflow: hidden;
+}
+.graph-bar {
+  height: 100%;
+  background: var(--fg);
+  width: 0%;
+  transition: width .4s ease;
+}
+
+.graph-btn-row { display: flex; gap: 6px; }
+
+.graph-error-msg { color: var(--red); }
+
 /* ===== Footer ===== */
 footer {
   padding: 7px 20px;

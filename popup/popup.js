@@ -6,6 +6,7 @@ let currentTab = 'dontFollowMeBack';
 let currentFilter = 'all';
 let currentResults = null;
 let pollTimer = null;
+let graphPollTimer = null;
 
 const RING_C = 2 * Math.PI * 24; // circumference for r=24
 
@@ -18,9 +19,9 @@ const views = {
 };
 
 // --- Messaging ---
-function send(type) {
+function send(type, payload) {
   return new Promise((resolve) => {
-    chrome.runtime.sendMessage({ type }, resolve);
+    chrome.runtime.sendMessage(payload ? { type, payload } : { type }, resolve);
   });
 }
 
@@ -262,6 +263,30 @@ async function loadResults() {
   }
 
   renderList(currentResults[currentTab] || []);
+
+  // Reveal graph section once mutuals are known
+  const mutualCount = r.mutuals?.length || 0;
+  const graphSection = $('#graphSection');
+  if (mutualCount > 0) {
+    graphSection.classList.remove('hidden');
+    $('#graphMutualCount').textContent = mutualCount;
+    $('#graphConfirmCount').textContent = mutualCount;
+    const etaMin = estimateGraphMinutes(mutualCount);
+    $('#graphEta').textContent = `~${etaMin} min`;
+    $('#graphConfirmEta').textContent = `${etaMin} min`;
+  } else {
+    graphSection.classList.add('hidden');
+  }
+
+  await refreshGraphState();
+}
+
+function estimateGraphMinutes(n) {
+  // 1 page typical (page_size=100) + 1s between nodes + some padding.
+  // Worst case with fallback to 12/page: ~4 pages × 2s + phase ≈ 10s/node.
+  // We show a mid estimate.
+  const perNodeSec = 3;
+  return Math.max(1, Math.round((n * perNodeSec) / 60));
 }
 
 async function loadProfile() {
@@ -329,9 +354,11 @@ $('#btnCopyLogs').addEventListener('click', async () => {
 $('#btnClearData').addEventListener('click', async () => {
   await send('CLEAR_DATA');
   currentResults = null;
+  stopGraphPoll();
   $('#resultsSection').classList.add('hidden');
   $('#statsRow').classList.add('hidden');
   $('#diffSection').classList.add('hidden');
+  $('#graphSection').classList.add('hidden');
   $('#lastScan').textContent = '';
   showView('prompt');
   toast('Cleared');
@@ -354,5 +381,119 @@ $$('.chip').forEach((c) => {
 $('#searchInput').addEventListener('input', () => {
   if (currentResults) renderList(currentResults[currentTab] || []);
 });
+
+// --- Graph section ---
+
+const GRAPH_STATES = ['graphIdle', 'graphConfirm', 'graphScanning', 'graphComplete', 'graphError'];
+
+function showGraphState(name) {
+  GRAPH_STATES.forEach((id) => {
+    $('#' + id).classList.toggle('hidden', id !== name);
+  });
+}
+
+async function refreshGraphState() {
+  const [state, graph] = await Promise.all([send('GET_GRAPH_STATUS'), send('GET_GRAPH')]);
+  applyGraphState(state, graph);
+  if (state && (state.status === 'scanning' || state.status === 'starting')) {
+    startGraphPoll();
+  }
+}
+
+function applyGraphState(state, graph) {
+  if (!state) {
+    showGraphState('graphIdle');
+    return;
+  }
+  switch (state.status) {
+    case 'idle':
+      if (graph && graph.nodes && graph.nodes.length > 0) {
+        showGraphState('graphComplete');
+        $('#graphCompleteNodes').textContent = graph.nodes.length;
+        $('#graphCompleteEdges').textContent = graph.edges.length;
+      } else {
+        showGraphState('graphIdle');
+      }
+      break;
+    case 'starting':
+    case 'scanning': {
+      showGraphState('graphScanning');
+      const pct = state.totalNodes > 0 ? (state.currentIndex / state.totalNodes) * 100 : 0;
+      $('#graphBar').style.width = `${pct}%`;
+      $('#graphProgressTitle').textContent = state.currentNodeUsername
+        ? `Scanning @${state.currentNodeUsername}...`
+        : 'Scanning mutuals...';
+      $('#graphProgressDetail').textContent = `${state.currentIndex} / ${state.totalNodes}`;
+      $('#graphEdgesLabel').textContent = `${state.edgesCount || 0} edges`;
+      break;
+    }
+    case 'complete':
+      showGraphState('graphComplete');
+      $('#graphCompleteNodes').textContent = (graph && graph.nodes.length) || state.totalNodes;
+      $('#graphCompleteEdges').textContent = (graph && graph.edges.length) || state.edgesCount;
+      break;
+    case 'error':
+      showGraphState('graphError');
+      $('#graphErrorMsg').textContent = state.error || 'Something went wrong';
+      break;
+  }
+}
+
+function startGraphPoll() {
+  stopGraphPoll();
+  graphPollTimer = setInterval(pollGraph, 1000);
+}
+function stopGraphPoll() {
+  if (graphPollTimer) {
+    clearInterval(graphPollTimer);
+    graphPollTimer = null;
+  }
+}
+async function pollGraph() {
+  const [state, graph] = await Promise.all([send('GET_GRAPH_STATUS'), send('GET_GRAPH')]);
+  if (!state) return;
+  applyGraphState(state, graph);
+  if (state.status === 'complete' || state.status === 'error' || state.status === 'idle') {
+    stopGraphPoll();
+  }
+}
+
+function openGraphTab() {
+  chrome.tabs.create({ url: chrome.runtime.getURL('graph/graph.html') });
+}
+
+$('#btnGraphBuild').addEventListener('click', () => {
+  showGraphState('graphConfirm');
+});
+$('#btnGraphCancelConfirm').addEventListener('click', () => {
+  showGraphState('graphIdle');
+});
+$('#btnGraphStart').addEventListener('click', async () => {
+  const resp = await send('START_GRAPH_SCAN');
+  if (resp?.ok) {
+    showGraphState('graphScanning');
+    $('#graphBar').style.width = '0%';
+    $('#graphProgressDetail').textContent = '0 / 0';
+    $('#graphEdgesLabel').textContent = '0 edges';
+    startGraphPoll();
+    openGraphTab();
+  } else {
+    showGraphState('graphError');
+    $('#graphErrorMsg').textContent = resp?.error || 'Failed to start graph scan';
+  }
+});
+$('#btnGraphCancelScan').addEventListener('click', async () => {
+  await send('CANCEL_GRAPH_SCAN');
+  stopGraphPoll();
+  toast('Graph scan cancelled');
+  refreshGraphState();
+});
+$('#btnGraphOpenTab').addEventListener('click', openGraphTab);
+$('#btnGraphOpen').addEventListener('click', openGraphTab);
+$('#btnGraphRebuild').addEventListener('click', async () => {
+  await send('CLEAR_GRAPH');
+  showGraphState('graphIdle');
+});
+$('#btnGraphRetry').addEventListener('click', () => showGraphState('graphIdle'));
 
 init();

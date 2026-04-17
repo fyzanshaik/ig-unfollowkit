@@ -12,10 +12,20 @@ import {
   setResults,
   getHistory,
   pushHistory,
+  getGraph,
+  setGraph,
+  getGraphState,
+  setGraphState,
+  defaultGraphState,
+  getGraphProgress,
+  setGraphProgress,
+  clearGraphProgress,
 } from './lib/storage.js';
+import { buildGraph, countEdges } from './lib/graph.js';
 
 const logger = new Logger();
 let currentApi = null;
+let currentGraphApi = null;
 
 // --- Session helpers ---
 
@@ -345,6 +355,101 @@ async function runScan() {
   }
 }
 
+// --- Graph scan ---
+
+async function runGraphScan() {
+  const state = defaultGraphState();
+  state.status = 'starting';
+  state.startedAt = new Date().toISOString();
+  await setGraphState(state);
+
+  try {
+    logger.info('=== Graph scan started ===');
+    const results = await getResults();
+    if (!results || !results.mutuals || results.mutuals.length === 0) {
+      throw new Error('No mutuals found. Run a regular scan first.');
+    }
+
+    const session = await resolveSession();
+    if (!session) {
+      throw new Error(
+        'Not logged into Instagram. Please open instagram.com and log in, then try again.'
+      );
+    }
+
+    const api = new InstagramAPI(session.csrftoken, logger);
+    currentGraphApi = api;
+
+    const mutuals = results.mutuals;
+    const mutualSet = new Set(mutuals.map((m) => m.pk));
+
+    // Resume support: per-node results are persisted as we go.
+    const progress = await getGraphProgress();
+
+    state.status = 'scanning';
+    state.totalNodes = mutuals.length;
+    state.currentIndex = 0;
+    state.edgesCount = countEdges(progress, mutualSet);
+    await setGraphState(state);
+
+    for (let i = 0; i < mutuals.length; i++) {
+      if (api.isAborted()) throw new Error('Scan aborted by user');
+
+      const node = mutuals[i];
+      state.currentIndex = i;
+      state.currentNodeUsername = node.username;
+      await setGraphState(state);
+
+      if (progress[node.pk]) {
+        logger.debug(`Skipping ${node.username} — already scanned`);
+        continue;
+      }
+
+      logger.info(`[${i + 1}/${mutuals.length}] Scanning mutual @${node.username}`);
+      try {
+        const fetched = await api.fetchMutualFollowers(node.pk);
+        progress[node.pk] = fetched.map((u) => u.pk);
+        await setGraphProgress(progress);
+        state.edgesCount = countEdges(progress, mutualSet);
+        await setGraphState(state);
+      } catch (err) {
+        if (err.message && err.message.includes('aborted')) throw err;
+        logger.warn(`Failed to fetch mutual_followers for @${node.username}`, {
+          error: err.message,
+        });
+        // Leave this node unrecorded so it retries on resume.
+      }
+
+      if (i + 1 < mutuals.length) {
+        await new Promise((r) => setTimeout(r, api.getPhaseDelay() / 5));
+      }
+    }
+
+    const graph = buildGraph(mutuals, progress);
+    await setGraph(graph);
+
+    state.status = 'complete';
+    state.completedAt = new Date().toISOString();
+    state.currentIndex = mutuals.length;
+    state.edgesCount = graph.edges.length;
+    state.error = null;
+    await setGraphState(state);
+
+    logger.info('=== Graph scan complete ===', {
+      nodes: graph.nodes.length,
+      edges: graph.edges.length,
+    });
+  } catch (err) {
+    logger.error('Graph scan failed', { error: err.message, stack: err.stack });
+    state.status = 'error';
+    state.error = err.message;
+    await setGraphState(state);
+  } finally {
+    currentGraphApi = null;
+    await logger.persist();
+  }
+}
+
 // --- Message handlers ---
 
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -414,10 +519,60 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return false;
   }
 
+  if (type === 'START_GRAPH_SCAN') {
+    getGraphState().then((s) => {
+      if (s.status === 'scanning' || s.status === 'starting') {
+        sendResponse({ ok: false, error: 'Graph scan already in progress' });
+        return;
+      }
+      sendResponse({ ok: true, status: 'started' });
+      runGraphScan();
+    });
+    return true;
+  }
+
+  if (type === 'CANCEL_GRAPH_SCAN') {
+    if (currentGraphApi) {
+      currentGraphApi.abort();
+      logger.warn('Graph scan cancelled by user');
+    }
+    getGraphState().then((s) => {
+      s.status = 'idle';
+      s.error = 'Cancelled by user';
+      setGraphState(s).then(() => sendResponse({ ok: true }));
+    });
+    return true;
+  }
+
+  if (type === 'GET_GRAPH_STATUS') {
+    getGraphState().then((s) => sendResponse(s));
+    return true;
+  }
+
+  if (type === 'GET_GRAPH') {
+    getGraph().then((g) => sendResponse(g));
+    return true;
+  }
+
+  if (type === 'CLEAR_GRAPH') {
+    Promise.all([
+      setGraph(null),
+      setGraphState(defaultGraphState()),
+      clearGraphProgress(),
+    ]).then(() => {
+      logger.info('Graph data cleared by user');
+      sendResponse({ ok: true });
+    });
+    return true;
+  }
+
   if (type === 'CLEAR_DATA') {
     Promise.all([
       setScanState(defaultScanState()),
       setResults(null),
+      setGraph(null),
+      setGraphState(defaultGraphState()),
+      clearGraphProgress(),
     ]).then(() => {
       logger.info('Data cleared by user');
       sendResponse({ ok: true });
